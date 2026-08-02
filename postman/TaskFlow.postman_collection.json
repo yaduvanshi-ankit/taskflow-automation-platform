@@ -1,0 +1,109 @@
+{
+  "info": { "name": "TaskFlow API", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "taskId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman User\",\n  \"email\": \"postman@example.test\",\n  \"password\": \"Passw0rd!123\"\n}" },
+            "url": "{{baseUrl}}/auth/register"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.collectionVariables.set('accessToken', pm.response.json().data.accessToken);"] } }]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"postman@example.test\",\n  \"password\": \"Passw0rd!123\"\n}" },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.collectionVariables.set('accessToken', pm.response.json().data.accessToken);"] } }]
+        },
+        { "name": "Refresh session", "request": { "method": "POST", "url": "{{baseUrl}}/auth/refresh" } },
+        { "name": "Logout", "request": { "method": "POST", "url": "{{baseUrl}}/auth/logout" } }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Create task",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"title\":\"Create task from Postman\",\"priority\":\"high\"}" },
+            "url": "{{baseUrl}}/tasks"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.collectionVariables.set('taskId', pm.response.json().data._id);"] } }]
+        },
+        {
+          "name": "List tasks (search/filter/paginate/sort)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/tasks?search=&status=&priority=&sort=newest&page=1&limit=10"
+          }
+        },
+        {
+          "name": "Update task",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"description\":\"Updated from Postman\"}" },
+            "url": "{{baseUrl}}/tasks/{{taskId}}"
+          }
+        },
+        {
+          "name": "Retry failed task",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/tasks/{{taskId}}/retry"
+          }
+        },
+        {
+          "name": "Delete task",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/tasks/{{taskId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Summary",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/dashboard/summary" }
+        }
+      ]
+    },
+    {
+      "name": "Admin (requires an admin account)",
+      "item": [
+        { "name": "List users", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/admin/users" } },
+        { "name": "List all tasks", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/admin/tasks?page=1&limit=20" } },
+        { "name": "Platform stats", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/admin/stats" } }
+      ]
+    },
+    { "name": "Health", "request": { "method": "GET", "url": "{{baseUrl}}/health" } }
+  ]
+}

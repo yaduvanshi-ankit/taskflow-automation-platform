@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import mongoose from 'mongoose';
+import { authenticate } from '../middleware/auth.js';
+import { Task } from '../models/Task.js';
+import { taskQueue } from '../queues/task.queue.js';
+import { redis } from '../config/redis.js';
+import { ok } from '../utils/api.js';
+const router = Router(); router.use(authenticate);
+router.get('/summary', async (req, res) => { const key = `dashboard:${req.user!.sub}`; const cached = await redis.get(key); if (cached) return ok(res, JSON.parse(cached), 200, { cached: true }); const [counts, queue] = await Promise.all([Task.aggregate([{ $match: { ownerId: new mongoose.Types.ObjectId(req.user!.sub) } }, { $group: { _id: '$status', count: { $sum: 1 } } }]), taskQueue.getJobCounts('waiting', 'active', 'delayed', 'failed')]); const byStatus = Object.fromEntries(counts.map(({ _id, count }) => [_id, count])); const data = { totalTasks: counts.reduce((sum, item) => sum + item.count, 0), completedTasks: byStatus.completed || 0, failedTasks: byStatus.failed || 0, pendingTasks: byStatus.pending || 0, processingTasks: byStatus.processing || 0, queue }; await redis.set(key, JSON.stringify(data), 'EX', 30); return ok(res, data); });
+export default router;

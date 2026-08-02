@@ -1,0 +1,16 @@
+import { Router } from 'express';
+import bcrypt from 'bcryptjs';
+import { z } from 'zod';
+import { User } from '../models/User.js';
+import { Session } from '../models/Session.js';
+import { ApiError, ok } from '../utils/api.js';
+import { createAccessToken, createRefreshToken, verifyRefreshToken } from '../utils/tokens.js';
+import { env } from '../config/env.js';
+const router = Router();
+const credentials = z.object({ email: z.string().email(), password: z.string().min(8).max(128) });
+const sendTokens = async (res: any, user: any) => { const payload = { sub: user._id.toString(), role: user.role, email: user.email }; const refresh = createRefreshToken(payload); const days = 7 * 24 * 60 * 60 * 1000; await Session.create({ userId: user._id, tokenId: refresh.jti, expiresAt: new Date(Date.now() + days) }); res.cookie('refreshToken', refresh.token, { httpOnly: true, sameSite: 'lax', secure: env.NODE_ENV === 'production', maxAge: days, path: '/api/v1/auth' }); return ok(res, { user: { id: user._id, name: user.name, email: user.email, role: user.role }, accessToken: createAccessToken(payload) }); };
+router.post('/register', async (req, res) => { const input = credentials.extend({ name: z.string().min(2).max(80) }).parse(req.body); if (await User.exists({ email: input.email.toLowerCase() })) throw new ApiError(409, 'Email is already registered'); const user = await User.create({ name: input.name, email: input.email, passwordHash: await bcrypt.hash(input.password, 12) }); return sendTokens(res, user); });
+router.post('/login', async (req, res) => { const input = credentials.parse(req.body); const user = await User.findOne({ email: input.email.toLowerCase() }).select('+passwordHash'); if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) throw new ApiError(401, 'Invalid email or password'); return sendTokens(res, user); });
+router.post('/refresh', async (req, res) => { const token = req.cookies.refreshToken; if (!token) throw new ApiError(401, 'Refresh token required'); const payload = verifyRefreshToken(token); if (!payload.jti || !(await Session.exists({ tokenId: payload.jti, userId: payload.sub }))) throw new ApiError(401, 'Refresh session expired'); await Session.deleteOne({ tokenId: payload.jti }); const user = await User.findById(payload.sub); if (!user) throw new ApiError(401, 'User no longer exists'); return sendTokens(res, user); });
+router.post('/logout', async (req, res) => { const token = req.cookies.refreshToken; if (token) { try { const payload = verifyRefreshToken(token); if (payload.jti) await Session.deleteOne({ tokenId: payload.jti }); } catch {} } res.clearCookie('refreshToken', { path: '/api/v1/auth' }); return ok(res, { message: 'Logged out' }); });
+export default router;

@@ -1,0 +1,14 @@
+{
+  "name": "taskflow-automation-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-style task automation and job processing platform",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w @taskflow/api\" \"npm run dev -w @taskflow/web\"",
+    "build": "npm run build -w @taskflow/api && npm run build -w @taskflow/web",
+    "test": "npm run test -w @taskflow/api",
+    "lint": "npm run lint -w @taskflow/api && npm run lint -w @taskflow/web"
+  },
+  "devDependencies": { "concurrently": "^9.1.2" }
+}
